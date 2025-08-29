@@ -1,0 +1,13 @@
+node_modules
+.next
+.turbo
+.idea
+.vscode
+.DS_Store
+dist
+build
+.env
+.env.local
+coverage
+pnpm-lock.yaml
+

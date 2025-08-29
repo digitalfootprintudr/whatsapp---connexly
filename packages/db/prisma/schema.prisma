@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vendor {
+  id                  String               @id @default(cuid())
+  name                String
+  domain              String?              @unique
+  status              VendorStatus         @default(ACTIVE)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  logoUrlLight        String?
+  logoUrlDark         String?
+  faviconUrlLight     String?
+  faviconUrlDark      String?
+  pusherKey           String?
+  pusherCluster       String?
+  storageBucket       String?
+  storagePublicBase   String?
+  metaAppId           String?
+  metaAppSecret       String?
+  wabaId              String?
+  phoneNumberId       String?
+  accessToken         String?
+  webhookVerifyToken  String?
+  webhookUrl          String?
+  auditLogs           AuditLog[]
+  botFlows            BotFlow[]
+  botReplies          BotReply[]
+  campaigns           Campaign[]
+  contacts            Contact[]
+  contactCustomFields ContactCustomField[]
+  messages            Message[]
+  subscriptions       Subscription[]
+  users               User[]
+  templates           WaTemplate[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String?
+  passwordHash String
+  role         UserRole   @default(VENDOR_ADMIN)
+  isActive     Boolean    @default(true)
+  vendorId     String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+  vendor       Vendor     @relation(fields: [vendorId], references: [id])
+}
+
+model SubscriptionPlan {
+  id                String         @id @default(cuid())
+  name              String         @unique
+  stripePriceId     String?
+  contactsLimit     Int
+  campaignsPerMonth Int
+  botRepliesLimit   Int
+  botFlowsLimit     Int
+  customFieldsLimit Int
+  teamMembersLimit  Int
+  aiChatBotEnabled  Boolean        @default(false)
+  apiAccessEnabled  Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  subscriptions     Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  vendorId           String
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId   String?
+  stripeSubId        String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
+  vendor             Vendor             @relation(fields: [vendorId], references: [id])
+}
+
+model Contact {
+  id              String                    @id @default(cuid())
+  vendorId        String
+  blocked         Boolean                   @default(false)
+  aiBotEnabled    Boolean                   @default(false)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  isDeleted       Boolean                   @default(false)
+  company         String?
+  email           String?
+  firstName       String
+  isOptedOut      Boolean?                  @default(false)
+  lastName        String?
+  phoneNumber     String
+  tags            String[]
+  campaignLogs    CampaignLog[]
+  campaignTargets CampaignTarget[]
+  vendor          Vendor                    @relation(fields: [vendorId], references: [id])
+  customFields    ContactCustomFieldValue[]
+  histories       ContactHistory[]
+  notes           ContactNote[]
+  messages        Message[]
+}
+
+model ContactHistory {
+  id        String   @id @default(cuid())
+  contactId String
+  event     String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  contact   Contact  @relation(fields: [contactId], references: [id])
+}
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contact   Contact  @relation(fields: [contactId], references: [id])
+}
+
+model ContactCustomField {
+  id        String                    @id @default(cuid())
+  vendorId  String
+  name      String
+  type      String
+  createdAt DateTime                  @default(now())
+  vendor    Vendor                    @relation(fields: [vendorId], references: [id])
+  values    ContactCustomFieldValue[]
+}
+
+model ContactCustomFieldValue {
+  id        String             @id @default(cuid())
+  contactId String
+  fieldId   String
+  value     String
+  contact   Contact            @relation(fields: [contactId], references: [id])
+  field     ContactCustomField @relation(fields: [fieldId], references: [id])
+}
+
+model Campaign {
+  id             String           @id @default(cuid())
+  vendorId       String
+  name           String
+  status         CampaignStatus   @default(DRAFT)
+  scheduledAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  isDeleted      Boolean          @default(false)
+  description    String?
+  message        Json
+  schedule       Json
+  stats          Json
+  targetAudience Json
+  type           CampaignType     @default(BULK_MESSAGE)
+  vendor         Vendor           @relation(fields: [vendorId], references: [id])
+  logs           CampaignLog[]
+  targets        CampaignTarget[]
+}
+
+model CampaignTarget {
+  id         String        @id @default(cuid())
+  campaignId String
+  contactId  String
+  status     MessageStatus @default(PENDING)
+  lastError  String?
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+  contact    Contact       @relation(fields: [contactId], references: [id])
+}
+
+model CampaignLog {
+  id         String        @id @default(cuid())
+  campaignId String
+  contactId  String
+  status     MessageStatus
+  error      String?
+  createdAt  DateTime      @default(now())
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+  contact    Contact       @relation(fields: [contactId], references: [id])
+}
+
+model WaTemplate {
+  id             String   @id @default(cuid())
+  vendorId       String
+  name           String
+  category       String
+  language       String
+  status         String
+  content        Json
+  metaTemplateId String?
+  createdAt      DateTime @default(now())
+  vendor         Vendor   @relation(fields: [vendorId], references: [id])
+}
+
+model BotReply {
+  id         String    @id @default(cuid())
+  vendorId   String
+  type       String
+  trigger    String
+  priority   Int       @default(0)
+  activeFrom DateTime?
+  activeTo   DateTime?
+  payload    Json
+  createdAt  DateTime  @default(now())
+  vendor     Vendor    @relation(fields: [vendorId], references: [id])
+}
+
+model BotFlow {
+  id        String   @id @default(cuid())
+  vendorId  String
+  name      String
+  graph     Json
+  createdAt DateTime @default(now())
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+}
+
+model Message {
+  id                String           @id @default(cuid())
+  vendorId          String
+  contactId         String
+  direction         MessageDirection
+  type              String
+  content           Json
+  status            MessageStatus    @default(PENDING)
+  whatsappMessageId String?          // WhatsApp's message ID for status tracking
+  createdAt         DateTime         @default(now())
+  contact           Contact          @relation(fields: [contactId], references: [id])
+  vendor            Vendor           @relation(fields: [vendorId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  vendorId  String
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+}
+
+enum VendorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  VENDOR_ADMIN
+  AGENT
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum CampaignType {
+  BULK_MESSAGE
+  TEMPLATE_MESSAGE
+  BOT_FLOW
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
